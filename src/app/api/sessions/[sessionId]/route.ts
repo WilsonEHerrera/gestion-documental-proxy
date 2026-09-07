@@ -1,6 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getSessionRepository } from '@/lib/repositories/sessionRepository';
 import { authenticateApiKey } from '@/lib/auth/apiKeyAuth';
+import { handleOptions } from '@/lib/utils/cors';
+
+export async function OPTIONS() {
+  return handleOptions();
+}
 
 export async function GET(
   request: NextRequest,

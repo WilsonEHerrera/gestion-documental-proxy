@@ -3,6 +3,11 @@ import { getSessionRepository } from '@/lib/repositories/sessionRepository';
 import { authenticateApiKey } from '@/lib/auth/apiKeyAuth';
 import { formatLocalDateTime, calculateExpirationDate } from '@/lib/utils/dateUtils';
 import { CreateSessionDto, DocumentSession } from '@/types/session';
+import { handleOptions } from '@/lib/utils/cors';
+
+export async function OPTIONS() {
+  return handleOptions();
+}
 
 export async function POST(request: NextRequest) {
   try {

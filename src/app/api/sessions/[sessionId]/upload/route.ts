@@ -2,6 +2,11 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getSessionRepository } from '@/lib/repositories/sessionRepository';
 import { gestionDocumentalService } from '@/lib/services/gestionDocumentalService';
 import { formatLocalDateTime } from '@/lib/utils/dateUtils';
+import { handleOptions } from '@/lib/utils/cors';
+
+export async function OPTIONS() {
+  return handleOptions();
+}
 
 export async function POST(
   request: NextRequest,
