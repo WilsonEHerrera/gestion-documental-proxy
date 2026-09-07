@@ -17,7 +17,9 @@ export interface AuthResult {
  * - Header 'x-private-key: prv_...'
  */
 export async function authenticateApiKey(request: NextRequest): Promise<AuthResult> {
-  let apiKey = request.headers.get('x-api-key') || request.headers.get('x-private-key');
+  let apiKey = request.headers.get('x-api-key') || 
+               request.headers.get('x-private-key') || 
+               request.headers.get('x-public-key');
 
   if (!apiKey) {
     const authHeader = request.headers.get('authorization');
@@ -29,18 +31,23 @@ export async function authenticateApiKey(request: NextRequest): Promise<AuthResu
   if (!apiKey || apiKey.trim() === '') {
     return {
       authenticated: false,
-      error: 'Se requiere una API Key para autenticar la petición. Envíela en el header "x-api-key" o "Authorization: Bearer <LLAVE_PRIVADA>".',
+      error: 'Se requiere una API Key para autenticar la petición. Envíela en el header "x-api-key", "x-public-key" o "Authorization: Bearer <LLAVE>".',
       status: 401,
     };
   }
 
   const projectRepo = getProjectRepository();
-  const project = await projectRepo.findByPrivateKey(apiKey.trim());
+  const trimmedKey = apiKey.trim();
+  let project = await projectRepo.findByPrivateKey(trimmedKey);
+  
+  if (!project) {
+    project = await projectRepo.findByPublicKey(trimmedKey);
+  }
 
   if (!project) {
     return {
       authenticated: false,
-      error: 'La API Key proporcionada no es válida o se encuentra inactiva.',
+      error: 'La API Key o Llave Pública proporcionada no es válida o se encuentra inactiva.',
       status: 401,
     };
   }
