@@ -59,7 +59,8 @@ export interface DocumentSession {
 }
 
 export interface CreateSessionDto {
-  proyectoId: string;
+  /** Identificador opcional; si no se envía, se deduce automáticamente del proyecto autenticado por API Key */
+  proyectoId?: string;
   allowedExtensions?: string[];
   maxFileSizeMB?: number;
   maxFiles?: number;

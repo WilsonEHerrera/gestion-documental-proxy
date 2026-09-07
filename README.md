@@ -1,36 +1,127 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Proxy de Gestión Documental
 
-## Getting Started
+Servicio intermediario seguro y modular para la integración de carga y custodia de documentos con sistemas empresariales (SpringBoot, MongoDB).
 
-First, run the development server:
+---
 
-```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+## 🚀 Características
+
+- **Autenticación Multi-tenant**: Proyectos registrados en MongoDB con llaves públicas y privadas (`prv_live_...` / `pub_live_...`).
+- **Sesiones Temporales**: Creación de enlaces de carga efímeros con control de tiempo (`expiresInMinutes`).
+- **Validación Robusta**: Restricciones de tipo de archivo (`allowedExtensions`), tamaño máximo (`maxFileSizeMB`) y cantidad (`maxFiles`).
+- **Documentación Interactiva**: Módulo visual disponible en `/docs` con snippets en cURL, JavaScript y Python.
+
+---
+
+## 🔐 Autenticación
+
+Todas las solicitudes a endpoints de backend deben autenticarse enviando la llave privada del proyecto:
+
+```http
+x-api-key: prv_live_xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
+```
+*También se admite `Authorization: Bearer <LLAVE_PRIVADA>` o `x-private-key: <LLAVE_PRIVADA>`.*
+
+---
+
+## 📡 API Endpoints
+
+### 1. Crear Sesión de Carga
+`POST /api/sessions`
+
+> **Nota:** El `proyectoId` **no es obligatorio** en el body. Se deduce y asocia automáticamente al proyecto autenticado mediante la API Key en MongoDB.
+
+**Headers:**
+```http
+Content-Type: application/json
+x-api-key: prv_live_tu_llave_privada
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+**Body (JSON):**
+```json
+{
+  "allowedExtensions": [".pdf", ".docx", ".png", ".jpg"],
+  "maxFileSizeMB": 10,
+  "maxFiles": 2,
+  "title": "Carga de Documentos de Identidad",
+  "description": "Adjunte su documento de identidad y comprobante de domicilio.",
+  "documentoRef": "EXP-2026-00912",
+  "etiquetas": ["cedula", "domicilio", "validacion"],
+  "redirectUrl": "https://mi-sistema.com/tramites/retorno",
+  "metadata": {
+    "usuarioId": "usr_991823",
+    "departamento": "finanzas"
+  },
+  "expiresInMinutes": 30
+}
+```
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+**Respuesta Exitosa (201 Created):**
+```json
+{
+  "sessionId": "doc_ses_8f31b29a-5e3a-4421-9dfc-1129d3cfa910",
+  "serviceType": "GESTION_DOCUMENTAL",
+  "url": "https://tu-dominio.com/upload/doc_ses_8f31b29a-5e3a-4421-9dfc-1129d3cfa910",
+  "expiresAt": "2026-09-07T13:30:00.000Z",
+  "status": "PENDING"
+}
+```
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+---
 
-## Learn More
+### 2. Consultar Estado de Sesión
+`GET /api/sessions/{sessionId}`
 
-To learn more about Next.js, take a look at the following resources:
+**Headers:**
+```http
+x-api-key: prv_live_tu_llave_privada
+```
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+**Respuesta (200 OK):**
+```json
+{
+  "sessionId": "doc_ses_8f31b29a-5e3a-4421-9dfc-1129d3cfa910",
+  "status": "COMPLETED",
+  "proyectoId": "PROYECTO_DEMO_01",
+  "documents": [
+    {
+      "id": "DOC-77821",
+      "originalName": "cedula.pdf",
+      "fileSizeBytes": 1048576,
+      "mimeType": "application/pdf",
+      "uploadedAt": "2026-09-07T13:05:00.000Z"
+    }
+  ],
+  "createdAt": "2026-09-07T12:50:00.000Z",
+  "expiresAt": "2026-09-07T13:20:00.000Z"
+}
+```
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+---
 
-## Deploy on Vercel
+## 🛠️ CLI: Creación de Proyectos
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+Para registrar un nuevo proyecto y generar sus llaves de API:
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+```bash
+node scripts/create-project.mjs <projectId> [nombre] [descripcion] [servicios]
+```
+
+**Ejemplo:**
+```bash
+node scripts/create-project.mjs PROY_CLIENTE_01 "Portal Clientes" "Carga de documentos" "DOCUMENTS,QUESTIONNAIRES"
+```
+
+---
+
+## 💻 Desarrollo Local
+
+```bash
+# Instalar dependencias
+npm install
+
+# Iniciar servidor de desarrollo
+npm run dev
+```
+
+Abra [http://localhost:3000](http://localhost:3000) para el sandbox o [http://localhost:3000/docs](http://localhost:3000/docs) para la documentación interactiva.

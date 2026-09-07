@@ -333,8 +333,8 @@ print(f"URL de carga: {data['url']}")`;
                       <tr>
                         <td className="p-3 font-mono font-bold text-zinc-800">proyectoId</td>
                         <td className="p-3 font-mono text-[11px]">string</td>
-                        <td className="p-3"><span className="text-zinc-800 font-semibold bg-zinc-200/80 px-1.5 py-0.5 rounded text-[10px]">Sí</span></td>
-                        <td className="p-3">Identificador del proyecto o cliente asignado.</td>
+                        <td className="p-3">No</td>
+                        <td className="p-3">Identificador del proyecto. Opcional: si se omite, se deduce automáticamente de la API Key (MongoDB).</td>
                       </tr>
                       <tr>
                         <td className="p-3 font-mono font-bold text-zinc-800">allowedExtensions</td>
@@ -547,7 +547,7 @@ print(f"URL de carga: {data['url']}")`;
                     <tr>
                       <td className="p-3 font-mono font-bold text-zinc-800">400</td>
                       <td className="p-3">Bad Request</td>
-                      <td className="p-3">Falta <code className="font-mono">proyectoId</code>, archivo excede tamaño o formato no permitido.</td>
+                      <td className="p-3">Parámetros inválidos, archivo excede tamaño o formato no permitido.</td>
                     </tr>
                     <tr>
                       <td className="p-3 font-mono font-bold text-zinc-800">404</td>
