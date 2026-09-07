@@ -19,9 +19,17 @@ export class GestionDocumentalService {
    * Sube un archivo individual a la API de Gestión Documental SpringBoot
    */
   async subirArchivo(options: UploadFileOptions): Promise<UploadedDocumentResult> {
-    const { file, documentoRef, etiquetas = [], proyectoId } = options;
+    const { file, documentoRef, etiquetas = [] } = options;
 
-    if (!proyectoId || proyectoId.trim() === '') {
+    // Normalizar proyectoId de forma completamente segura
+    let rawProyectoId: unknown = options.proyectoId;
+    if (rawProyectoId && typeof rawProyectoId === 'object') {
+      const obj = rawProyectoId as Record<string, unknown>;
+      rawProyectoId = obj.projectId || obj.id || obj.proyectoId || '';
+    }
+    const proyectoId = typeof rawProyectoId === 'string' ? rawProyectoId.trim() : (rawProyectoId ? String(rawProyectoId).trim() : '');
+
+    if (!proyectoId) {
       throw new Error('No se especificó el proyectoId en la sesión para el header "x-proyecto-id".');
     }
 
@@ -29,11 +37,21 @@ export class GestionDocumentalService {
     formData.append('file', file, file.name);
 
     if (documentoRef) {
-      formData.append('documentoRef', documentoRef);
+      const docRefStr = typeof documentoRef === 'string' ? documentoRef.trim() : String(documentoRef);
+      if (docRefStr) {
+        formData.append('documentoRef', docRefStr);
+      }
     }
 
-    for (const etiqueta of etiquetas) {
-      formData.append('etiquetas', etiqueta);
+    if (Array.isArray(etiquetas)) {
+      for (const etiqueta of etiquetas) {
+        if (etiqueta !== undefined && etiqueta !== null) {
+          const tagStr = String(etiqueta).trim();
+          if (tagStr) {
+            formData.append('etiquetas', tagStr);
+          }
+        }
+      }
     }
 
     let response: Response;
@@ -41,7 +59,7 @@ export class GestionDocumentalService {
       response = await fetch(this.baseUrl, {
         method: 'POST',
         headers: {
-          'x-proyecto-id': proyectoId.trim(),
+          'x-proyecto-id': proyectoId,
         },
         body: formData,
       });

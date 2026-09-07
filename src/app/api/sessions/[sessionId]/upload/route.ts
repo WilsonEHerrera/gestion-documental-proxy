@@ -106,9 +106,10 @@ export async function POST(
     }
 
     // Parámetros adicionales opcionales para SpringBoot
-    const documentoRef = (formData.get('documentoRef') as string) || session.config.documentoRef;
+    const documentoRef = (formData.get('documentoRef') as string) || session.config?.documentoRef;
     const extraEtiquetas = formData.getAll('etiquetas').map(String);
-    const etiquetas = [...(session.config.etiquetas || []), ...extraEtiquetas];
+    const etiquetas = [...(session.config?.etiquetas || []), ...extraEtiquetas];
+    const resolvedProyectoId = session.config?.proyectoId || session.proyectoId || '';
 
     // Enviar a la API SpringBoot de Gestión Documental
     let uploadedResults;
@@ -116,7 +117,7 @@ export async function POST(
       uploadedResults = await gestionDocumentalService.subirMultiplesArchivos(files, {
         documentoRef,
         etiquetas,
-        proyectoId: session.config.proyectoId,
+        proyectoId: resolvedProyectoId,
       });
     } catch (error: unknown) {
       const errorMsg = error instanceof Error ? error.message : 'Error al conectar con la API de Gestión Documental';
