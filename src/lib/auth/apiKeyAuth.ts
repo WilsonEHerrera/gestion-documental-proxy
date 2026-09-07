@@ -45,6 +45,20 @@ export async function authenticateApiKey(request: NextRequest): Promise<AuthResu
     };
   }
 
+  // Si el proyecto tiene una lista de servicios asignados, verificar permiso para Documentos
+  if (project.services && project.services.length > 0) {
+    const hasAccess = project.services.some(
+      (s) => s.toUpperCase() === 'DOCUMENTS' || s.toUpperCase() === 'GESTION_DOCUMENTAL'
+    );
+    if (!hasAccess) {
+      return {
+        authenticated: false,
+        error: 'El proyecto no tiene habilitado el servicio de Gestión Documental.',
+        status: 403,
+      };
+    }
+  }
+
   return {
     authenticated: true,
     project,

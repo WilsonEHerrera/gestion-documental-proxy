@@ -27,6 +27,7 @@ export class MongoProjectRepository implements IProjectRepository {
             publicKey: 'pub_live_demo123456789',
             privateKey: 'prv_live_demo123456789',
             isActive: true,
+            services: ['DOCUMENTS', 'QUESTIONNAIRES'],
             createdAt: formatLocalDateTime(),
             description: 'Proyecto de prueba por defecto para sandbox e integraciones locales.',
           };
