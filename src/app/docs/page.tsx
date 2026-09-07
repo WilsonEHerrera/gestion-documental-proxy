@@ -334,7 +334,7 @@ print(f"URL de carga: {data['url']}")`;
                         <td className="p-3 font-mono font-bold text-zinc-800">proyectoId</td>
                         <td className="p-3 font-mono text-[11px]">string</td>
                         <td className="p-3">No</td>
-                        <td className="p-3">Identificador del proyecto. Opcional: si se omite, se deduce automáticamente de la API Key (MongoDB).</td>
+                        <td className="p-3">Identificador del proyecto. Opcional: si se omite, se deduce automáticamente de la API Key.</td>
                       </tr>
                       <tr>
                         <td className="p-3 font-mono font-bold text-zinc-800">allowedExtensions</td>
@@ -417,7 +417,7 @@ print(f"URL de carga: {data['url']}")`;
                       Redirige al usuario a la <code className="bg-zinc-200/80 px-1 rounded font-mono text-[10px]">url</code> recibida al crear la sesión.
                     </p>
                     <pre className="bg-[#242933] text-zinc-200 p-2.5 rounded-lg text-[10px] font-mono overflow-x-auto">
-{`window.location.href = data.url;`}
+                      {`window.location.href = data.url;`}
                     </pre>
                   </div>
 
@@ -430,7 +430,7 @@ print(f"URL de carga: {data['url']}")`;
                       Abre el widget en una ventana secundaria sin interrumpir la vista principal.
                     </p>
                     <pre className="bg-[#242933] text-zinc-200 p-2.5 rounded-lg text-[10px] font-mono overflow-x-auto">
-{`<a href={data.url} target="_blank">
+                      {`<a href={data.url} target="_blank">
   Subir Archivos
 </a>`}
                     </pre>
@@ -445,7 +445,7 @@ print(f"URL de carga: {data['url']}")`;
                       Incrusta el widget directamente dentro de un modal o contenedor en tu aplicación.
                     </p>
                     <pre className="bg-[#242933] text-zinc-200 p-2.5 rounded-lg text-[10px] font-mono overflow-x-auto">
-{`<iframe 
+                      {`<iframe 
   src={data.url} 
   className="w-full h-[520px]" 
 />`}
