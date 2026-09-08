@@ -36,12 +36,11 @@ export class GestionDocumentalService {
     const formData = new FormData();
     formData.append('file', file, file.name);
 
-    if (documentoRef) {
-      const docRefStr = typeof documentoRef === 'string' ? documentoRef.trim() : String(documentoRef);
-      if (docRefStr) {
-        formData.append('documentoRef', docRefStr);
-      }
-    }
+    // Si no viene documentoRef o viene vacío, autogeneramos una referencia única para cumplir con @NotBlank de Spring Boot
+    const docRefStr =
+      (documentoRef && typeof documentoRef === 'string' ? documentoRef.trim() : (documentoRef ? String(documentoRef).trim() : '')) ||
+      `REF_${Date.now()}_${crypto.randomUUID().slice(0, 8)}`;
+    formData.append('documentoRef', docRefStr);
 
     if (Array.isArray(etiquetas)) {
       for (const etiqueta of etiquetas) {

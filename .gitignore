@@ -42,3 +42,9 @@ next-env.d.ts
 
 # scripts locales de administración
 /scripts/
+
+# compressed files
+*.rar
+*.zip
+*.7z
+*.tar.gz
