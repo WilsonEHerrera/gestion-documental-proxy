@@ -34,7 +34,8 @@ export default function UploadPage({ params }: UploadPageProps) {
     try {
       setLoading(true);
       setErrorMessage(null);
-      const res = await fetch(`/api/sessions/${sessionId}`);
+      const basePath = process.env.NEXT_PUBLIC_BASE_PATH || '';
+      const res = await fetch(`${basePath}/api/sessions/${sessionId}`);
       if (!res.ok) {
         if (res.status === 404) {
           throw new Error('La sesión de carga no fue encontrada o ha caducado.');
@@ -185,7 +186,8 @@ export default function UploadPage({ params }: UploadPageProps) {
       setUploadProgress(60);
       setUploadStepText('Transfiriendo documentos...');
 
-      const res = await fetch(`/api/sessions/${sessionId}/upload`, {
+      const basePath = process.env.NEXT_PUBLIC_BASE_PATH || '';
+      const res = await fetch(`${basePath}/api/sessions/${sessionId}/upload`, {
         method: 'POST',
         body: formData,
       });

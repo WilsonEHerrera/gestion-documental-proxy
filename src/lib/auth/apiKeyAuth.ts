@@ -17,9 +17,9 @@ export interface AuthResult {
  * - Header 'x-private-key: prv_...'
  */
 export async function authenticateApiKey(request: NextRequest): Promise<AuthResult> {
-  let apiKey = request.headers.get('x-api-key') || 
-               request.headers.get('x-private-key') || 
-               request.headers.get('x-public-key');
+  let apiKey = request.headers.get('x-api-key') ||
+    request.headers.get('x-private-key') ||
+    request.headers.get('x-public-key');
 
   if (!apiKey) {
     const authHeader = request.headers.get('authorization');
@@ -39,7 +39,7 @@ export async function authenticateApiKey(request: NextRequest): Promise<AuthResu
   const projectRepo = getProjectRepository();
   const trimmedKey = apiKey.trim();
   let project = await projectRepo.findByPrivateKey(trimmedKey);
-  
+
   if (!project) {
     project = await projectRepo.findByPublicKey(trimmedKey);
   }
@@ -52,7 +52,6 @@ export async function authenticateApiKey(request: NextRequest): Promise<AuthResu
     };
   }
 
-  // Si el proyecto tiene una lista de servicios asignados, verificar permiso para Documentos
   if (project.services && project.services.length > 0) {
     const hasAccess = project.services.some(
       (s) => s.toUpperCase() === 'DOCUMENTS' || s.toUpperCase() === 'GESTION_DOCUMENTAL'

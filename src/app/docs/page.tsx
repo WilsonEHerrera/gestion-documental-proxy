@@ -124,7 +124,7 @@ print(f"URL de carga: {data['url']}")`;
       <header className="border-b border-zinc-200 bg-white sticky top-0 z-50">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 h-14 flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <Link href="/" className="flex items-center gap-2.5 text-zinc-900 font-semibold text-sm">
+            <Link href={process.env.NEXT_PUBLIC_BASE_PATH || '/'} className="flex items-center gap-2.5 text-zinc-900 font-semibold text-sm">
               <div className="w-6 h-6 rounded-md bg-zinc-800 text-white flex items-center justify-center text-xs font-bold font-mono">
                 GD
               </div>
@@ -136,7 +136,7 @@ print(f"URL de carga: {data['url']}")`;
 
           <div className="flex items-center gap-3">
             <Link
-              href="/"
+              href={process.env.NEXT_PUBLIC_BASE_PATH || '/'}
               className="text-xs text-zinc-600 hover:text-zinc-900 font-medium px-3 py-1.5 rounded-lg border border-zinc-200 hover:bg-zinc-100 transition-colors"
             >
               ← Consola / Sandbox

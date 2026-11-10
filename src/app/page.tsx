@@ -46,7 +46,8 @@ export default function HomePage() {
           .filter(Boolean),
       };
 
-      const res = await fetch('/api/sessions', {
+      const basePath = process.env.NEXT_PUBLIC_BASE_PATH || '';
+      const res = await fetch(`${basePath}/api/sessions`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -73,7 +74,8 @@ export default function HomePage() {
   const handleInspect = async (id: string) => {
     setInspectLoading(true);
     try {
-      const res = await fetch(`/api/sessions/${id}`, {
+      const basePath = process.env.NEXT_PUBLIC_BASE_PATH || '';
+      const res = await fetch(`${basePath}/api/sessions/${id}`, {
         headers: {
           'x-api-key': apiKey.trim(),
         },
@@ -110,7 +112,7 @@ export default function HomePage() {
 
           <div className="flex items-center gap-3">
             <a
-              href="/docs"
+              href={`${process.env.NEXT_PUBLIC_BASE_PATH || ''}/docs`}
               className="text-xs text-stone-600 hover:text-stone-900 font-medium px-3 py-1.5 rounded-lg border border-stone-200 hover:bg-stone-100 transition-colors flex items-center gap-1.5"
             >
               <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">

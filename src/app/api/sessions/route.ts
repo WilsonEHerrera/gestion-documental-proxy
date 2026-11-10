@@ -11,7 +11,6 @@ export async function OPTIONS() {
 
 export async function POST(request: NextRequest) {
   try {
-    // 1. Validar autenticación de la API Key en MongoDB
     const auth = await authenticateApiKey(request);
     if (!auth.authenticated || !auth.project) {
       return NextResponse.json(
@@ -22,7 +21,6 @@ export async function POST(request: NextRequest) {
 
     const body = (await request.json()) as CreateSessionDto;
 
-    // El proyectoId se toma directamente del proyecto autenticado por su llave privada
     const proyectoId = auth.project.projectId;
 
     const sessionId = `doc_ses_${crypto.randomUUID()}`;
@@ -31,7 +29,6 @@ export async function POST(request: NextRequest) {
     const now = formatLocalDateTime();
     const expiresAt = calculateExpirationDate(expiresInMinutes);
 
-    // Normalizar extensiones permitidas
     const allowedExtensions = (body.allowedExtensions && body.allowedExtensions.length > 0)
       ? body.allowedExtensions.map((ext) => (ext.startsWith('.') ? ext.toLowerCase() : `.${ext.toLowerCase()}`))
       : ['.pdf', '.png', '.jpg', '.jpeg', '.docx'];
@@ -65,7 +62,6 @@ export async function POST(request: NextRequest) {
     const repo = getSessionRepository();
     await repo.create(newSession);
 
-    // Construir la URL completa del widget
     const baseUrl = process.env.NEXT_PUBLIC_APP_URL || request.nextUrl.origin;
     const uploadUrl = `${baseUrl}/upload/${sessionId}`;
 
