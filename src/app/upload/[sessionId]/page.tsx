@@ -1,7 +1,9 @@
 'use client';
 
-import React, { useState, useEffect, useRef, use } from 'react';
-import { DocumentSession } from '@/types/session';
+import React, { useState, useEffect, useMemo, useRef, use } from 'react';
+import { ClasificacionDocumento, DocumentSession } from '@/types/session';
+import { flattenSeries, TipoDocumentalOption } from '@/lib/utils/series';
+import TipoDocumentalSelect from '@/components/upload/TipoDocumentalSelect';
 
 interface UploadPageProps {
   params: Promise<{ sessionId: string }>;
@@ -9,7 +11,7 @@ interface UploadPageProps {
 
 interface FileWithPreview {
   file: File;
-  previewUrl?: string;
+  clasificacion?: ClasificacionDocumento;
 }
 
 export default function UploadPage({ params }: UploadPageProps) {
@@ -27,7 +29,31 @@ export default function UploadPage({ params }: UploadPageProps) {
   const [uploadSuccess, setUploadSuccess] = useState(false);
   const [redirectCount, setRedirectCount] = useState<number | null>(null);
 
+  const [openSelectIdx, setOpenSelectIdx] = useState<number | null>(null);
+
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  // Clasificación documental (solo si la sesión trae seriesClasificacion)
+  const seriesOptions = useMemo(
+    () => flattenSeries(session?.config?.seriesClasificacion),
+    [session]
+  );
+  const hasSeries = seriesOptions.length > 0;
+  const unclassifiedCount = hasSeries ? selectedFiles.filter((f) => !f.clasificacion).length : 0;
+
+  const setClasificacion = (index: number, option: TipoDocumentalOption) => {
+    const clasificacion: ClasificacionDocumento = {
+      serie: option.serie,
+      subserie: option.subserie,
+      tipoDocumental: option.tipoDocumental,
+    };
+    const updated = selectedFiles.map((f, i) => (i === index ? { ...f, clasificacion } : f));
+    setSelectedFiles(updated);
+    // Auto-avance: abrir el siguiente archivo sin clasificar
+    const order = [...updated.keys()];
+    const next = [...order.slice(index + 1), ...order.slice(0, index)].find((i) => !updated[i].clasificacion);
+    setOpenSelectIdx(next ?? null);
+  };
 
   // Cargar estado inicial de la sesión
   const fetchSession = async () => {
@@ -74,14 +100,6 @@ export default function UploadPage({ params }: UploadPageProps) {
     }
   }, [uploadSuccess, session]);
 
-  // Limpieza de ObjectURLs para evitar fugas de memoria
-  useEffect(() => {
-    return () => {
-      selectedFiles.forEach((f) => {
-        if (f.previewUrl) URL.revokeObjectURL(f.previewUrl);
-      });
-    };
-  }, [selectedFiles]);
 
   const handleRedirect = () => {
     if (!session?.config?.redirectUrl) return;
@@ -132,21 +150,17 @@ export default function UploadPage({ params }: UploadPageProps) {
         return;
       }
 
-      const isImage = f.type.startsWith('image/');
-      const previewUrl = isImage ? URL.createObjectURL(f) : undefined;
-
-      validFileWrappers.push({ file: f, previewUrl });
+      // Conservar la clasificación ya elegida de archivos existentes
+      const existing = selectedFiles.find((s) => s.file === f);
+      validFileWrappers.push({ file: f, clasificacion: existing?.clasificacion });
     }
 
     setSelectedFiles(validFileWrappers);
   };
 
   const removeFile = (index: number) => {
-    setSelectedFiles((prev) => {
-      const target = prev[index];
-      if (target?.previewUrl) URL.revokeObjectURL(target.previewUrl);
-      return prev.filter((_, i) => i !== index);
-    });
+    setOpenSelectIdx(null);
+    setSelectedFiles((prev) => prev.filter((_, i) => i !== index));
   };
 
   const handleDragOver = (e: React.DragEvent) => {
@@ -171,6 +185,13 @@ export default function UploadPage({ params }: UploadPageProps) {
     e.preventDefault();
     if (selectedFiles.length === 0 || !session) return;
 
+    if (hasSeries && unclassifiedCount > 0) {
+      setErrorMessage(
+        `Falta clasificar ${unclassifiedCount} documento${unclassifiedCount > 1 ? 's' : ''} antes de enviar.`
+      );
+      return;
+    }
+
     try {
       setUploading(true);
       setUploadProgress(25);
@@ -181,6 +202,9 @@ export default function UploadPage({ params }: UploadPageProps) {
       selectedFiles.forEach(({ file }) => {
         formData.append('files', file);
       });
+      if (hasSeries) {
+        formData.append('clasificaciones', JSON.stringify(selectedFiles.map((f) => f.clasificacion)));
+      }
 
       await new Promise((r) => setTimeout(r, 300));
       setUploadProgress(60);
@@ -300,7 +324,12 @@ export default function UploadPage({ params }: UploadPageProps) {
             <p className="text-[11px] font-semibold text-stone-500 uppercase tracking-wider">Archivos recibidos:</p>
             {session.documents.map((doc, idx) => (
               <div key={idx} className="flex items-center justify-between text-xs py-1.5 px-2 bg-white rounded-lg border border-stone-200/70">
-                <span className="text-stone-800 truncate max-w-[200px] font-medium">{doc.originalName}</span>
+                <span className="truncate max-w-[200px]">
+                  <span className="block text-stone-800 truncate font-medium">{doc.originalName}</span>
+                  {doc.clasificacion && (
+                    <span className="block text-[10px] text-stone-500 truncate">{doc.clasificacion.tipoDocumental}</span>
+                  )}
+                </span>
                 <span className="text-stone-500 font-mono text-[10px]">
                   {doc.id}
                 </span>
@@ -350,7 +379,12 @@ export default function UploadPage({ params }: UploadPageProps) {
             <div className="space-y-1.5">
               {session.documents.map((doc, idx) => (
                 <div key={idx} className="flex items-center justify-between text-xs py-1.5 px-2.5 bg-white rounded-lg border border-stone-200">
-                  <span className="text-stone-800 truncate max-w-[200px] font-medium">{doc.originalName}</span>
+                  <span className="truncate max-w-[200px]">
+                    <span className="block text-stone-800 truncate font-medium">{doc.originalName}</span>
+                    {doc.clasificacion && (
+                      <span className="block text-[10px] text-stone-500 truncate">{doc.clasificacion.tipoDocumental}</span>
+                    )}
+                  </span>
                   <span className="text-stone-500 font-mono text-[10px]">
                     {doc.id}
                   </span>
@@ -389,10 +423,12 @@ export default function UploadPage({ params }: UploadPageProps) {
   // 6. Vista Principal de Carga (Limpia, Sin badges innecesarios, con Punteros de Slots)
   const maxFilesAllowed = session.config.maxFiles || 1;
   const isMultiple = maxFilesAllowed > 1;
+  // Modo compacto: con series y archivos ya seleccionados, se reduce el dropzone y se ensancha la tarjeta
+  const compact = hasSeries && selectedFiles.length > 0;
 
   return (
     <main className="min-h-screen bg-[#FAF9F6] text-[#292524] flex flex-col items-center justify-center p-4 sm:p-6 antialiased font-sans">
-      <div className="w-full max-w-lg space-y-6">
+      <div className={`w-full space-y-6 ${hasSeries ? 'max-w-2xl' : 'max-w-lg'}`}>
         
         {/* Cabecera Limpia */}
         <div className="text-center space-y-2">
@@ -448,12 +484,30 @@ export default function UploadPage({ params }: UploadPageProps) {
               onDragLeave={handleDragLeave}
               onDrop={handleDrop}
               onClick={() => fileInputRef.current?.click()}
-              className={`border border-dashed rounded-2xl p-8 text-center cursor-pointer transition-all flex flex-col items-center justify-center gap-3 ${
+              className={`border border-dashed rounded-2xl text-center cursor-pointer transition-all flex ${
+                compact
+                  ? 'p-3 flex-row items-center justify-between gap-3'
+                  : 'p-8 flex-col items-center justify-center gap-3'
+              } ${
                 isDragging
                   ? 'border-stone-900 bg-stone-100 scale-[1.01]'
                   : 'border-stone-300 hover:border-stone-400 bg-[#FAF9F6]/60 hover:bg-[#FAF9F6]'
               }`}
             >
+              {compact ? (
+                <>
+                  <span className="text-xs font-semibold text-stone-800 flex items-center gap-2">
+                    <svg className="w-4 h-4 text-stone-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 4v16m8-8H4" />
+                    </svg>
+                    {isDragging ? 'Suelta los archivos aquí' : 'Agregar más archivos'}
+                  </span>
+                  <span className="font-mono text-[11px] text-stone-500">
+                    {selectedFiles.length} de {maxFilesAllowed} · máx. {session.config.maxFileSizeMB} MB
+                  </span>
+                </>
+              ) : (
+              <>
               <div className="w-12 h-12 rounded-full bg-white border border-stone-200 text-stone-700 flex items-center justify-center shadow-2xs">
                 <svg className="w-5 h-5 text-stone-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.75" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
@@ -482,9 +536,12 @@ export default function UploadPage({ params }: UploadPageProps) {
                   </span>
                 ))}
               </div>
+              </>
+              )}
             </div>
 
             {/* Punteros de Slots / Cantidad de Archivos */}
+            {!compact && (
             <div className="bg-[#FAF9F6] border border-stone-200/80 rounded-xl p-3 flex items-center justify-between text-xs text-stone-600">
               <div className="flex items-center gap-2">
                 <span className="font-medium text-stone-700">Archivos adjuntos:</span>
@@ -506,12 +563,20 @@ export default function UploadPage({ params }: UploadPageProps) {
                 {selectedFiles.length} de {maxFilesAllowed}
               </span>
             </div>
+            )}
 
             {/* Lista de Archivos Seleccionados con Previsualización */}
             {selectedFiles.length > 0 && (
               <div className="space-y-2.5">
                 <div className="flex items-center justify-between text-xs text-stone-600 font-medium px-1">
-                  <span>Detalle de archivos</span>
+                  <span>
+                    Detalle de archivos
+                    {hasSeries && (
+                      <span className="ml-2 font-mono text-[11px] text-stone-500">
+                        {selectedFiles.length - unclassifiedCount} de {selectedFiles.length} clasificados
+                      </span>
+                    )}
+                  </span>
                   <button
                     type="button"
                     onClick={() => setSelectedFiles([])}
@@ -521,30 +586,20 @@ export default function UploadPage({ params }: UploadPageProps) {
                   </button>
                 </div>
 
-                <div className="space-y-2 max-h-56 overflow-y-auto">
+                <div className={`space-y-2 ${hasSeries ? '' : 'max-h-56 overflow-y-auto'}`}>
                   {selectedFiles.map((item, index) => (
                     <div
                       key={`${item.file.name}-${index}`}
-                      className="bg-[#FAF9F6] border border-stone-200 rounded-xl p-3 flex items-center justify-between gap-3"
+                      className={
+                        hasSeries
+                          ? `bg-[#FAF9F6] border rounded-xl p-2.5 grid grid-cols-[minmax(0,1fr)_auto] sm:grid-cols-[minmax(0,1fr)_17rem_auto] items-center gap-x-3 gap-y-2 ${
+                              item.clasificacion ? 'border-stone-200' : 'border-amber-300/70'
+                            }`
+                          : 'bg-[#FAF9F6] border border-stone-200 rounded-xl p-3 flex items-center justify-between gap-3'
+                      }
                     >
-                      <div className="flex items-center gap-3 overflow-hidden">
-                        {item.previewUrl ? (
-                          // Miniatura para imágenes
-                          <div className="w-9 h-9 rounded-lg overflow-hidden border border-stone-200 shrink-0 bg-stone-100">
-                            {/* eslint-disable-next-line @next/next/no-img-element */}
-                            <img
-                              src={item.previewUrl}
-                              alt={item.file.name}
-                              className="w-full h-full object-cover"
-                            />
-                          </div>
-                        ) : (
-                          // Badge para documentos (PDF, DOCX, etc)
-                          <div className="w-9 h-9 rounded-lg bg-stone-200/80 text-stone-700 flex items-center justify-center shrink-0 text-[10px] font-bold font-mono uppercase border border-stone-300/50">
-                            {item.file.name.split('.').pop()?.slice(0, 3) || 'DOC'}
-                          </div>
-                        )}
-
+                      <div className="contents">
+                      <div className={`flex items-center gap-3 overflow-hidden ${hasSeries ? 'order-1 min-w-0' : ''}`}>
                         <div className="truncate">
                           <p className="text-xs font-medium text-stone-800 truncate">{item.file.name}</p>
                           <p className="text-[11px] text-stone-400 font-mono">{formatBytes(item.file.size)}</p>
@@ -555,13 +610,29 @@ export default function UploadPage({ params }: UploadPageProps) {
                         type="button"
                         onClick={() => removeFile(index)}
                         disabled={uploading}
-                        className="text-stone-400 hover:text-stone-700 p-1.5 rounded-md hover:bg-stone-200/50 transition-colors cursor-pointer"
+                        className={`text-stone-400 hover:text-stone-700 p-1.5 rounded-md hover:bg-stone-200/50 transition-colors cursor-pointer ${
+                          hasSeries ? 'order-2 sm:order-3' : ''
+                        }`}
                         title="Eliminar archivo"
                       >
                         <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" />
                         </svg>
                       </button>
+                      </div>
+
+                      {hasSeries && (
+                        <div className="order-3 sm:order-2 col-span-2 sm:col-span-1 min-w-0">
+                          <TipoDocumentalSelect
+                            options={seriesOptions}
+                            value={item.clasificacion}
+                            onChange={(opt) => setClasificacion(index, opt)}
+                            open={openSelectIdx === index}
+                            onOpenChange={(o) => setOpenSelectIdx(o ? index : null)}
+                            disabled={uploading}
+                          />
+                        </div>
+                      )}
                     </div>
                   ))}
                 </div>
@@ -585,11 +656,17 @@ export default function UploadPage({ params }: UploadPageProps) {
             )}
 
             {/* Botón Principal */}
+            {hasSeries && selectedFiles.length > 0 && unclassifiedCount > 0 && (
+              <p className="text-[11px] text-amber-800 text-center">
+                Falta clasificar {unclassifiedCount} documento{unclassifiedCount > 1 ? 's' : ''} para poder enviar.
+              </p>
+            )}
+
             <button
               type="submit"
-              disabled={selectedFiles.length === 0 || uploading}
+              disabled={selectedFiles.length === 0 || uploading || unclassifiedCount > 0}
               className={`w-full py-3.5 px-5 rounded-xl font-medium text-xs sm:text-sm transition-all flex items-center justify-center gap-2 ${
-                selectedFiles.length === 0 || uploading
+                selectedFiles.length === 0 || uploading || unclassifiedCount > 0
                   ? 'bg-stone-200 text-stone-400 cursor-not-allowed'
                   : 'bg-[#292524] hover:bg-[#1C1917] text-white cursor-pointer shadow-xs active:scale-[0.99]'
               }`}

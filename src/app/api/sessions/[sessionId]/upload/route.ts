@@ -3,6 +3,8 @@ import { getSessionRepository } from '@/lib/repositories/sessionRepository';
 import { gestionDocumentalService } from '@/lib/services/gestionDocumentalService';
 import { formatLocalDateTime } from '@/lib/utils/dateUtils';
 import { handleOptions } from '@/lib/utils/cors';
+import { isValidClasificacion } from '@/lib/utils/series';
+import { ClasificacionDocumento, FailedDocumentAttempt, UploadedDocumentResult } from '@/types/session';
 
 export async function OPTIONS() {
   return handleOptions();
@@ -111,25 +113,84 @@ export async function POST(
     const etiquetas = [...(session.config?.etiquetas || []), ...extraEtiquetas];
     const resolvedProyectoId = session.config?.proyectoId || session.proyectoId || '';
 
+    // Clasificación por documento (solo si la sesión define seriesClasificacion)
+    const series = session.config?.seriesClasificacion;
+    const hasSeries = Array.isArray(series) && series.length > 0;
+    let clasificaciones: ClasificacionDocumento[] = [];
+
+    if (hasSeries) {
+      let parsed: unknown;
+      try {
+        parsed = JSON.parse(String(formData.get('clasificaciones') ?? ''));
+      } catch {
+        parsed = undefined;
+      }
+
+      if (!Array.isArray(parsed) || parsed.length !== files.length) {
+        return NextResponse.json(
+          { error: 'Esta sesión requiere clasificar cada documento: envíe "clasificaciones" con un elemento por archivo, en el mismo orden.' },
+          { status: 400 }
+        );
+      }
+
+      const invalidIdx = parsed.findIndex((c) => !isValidClasificacion(series, c));
+      if (invalidIdx !== -1) {
+        return NextResponse.json(
+          { error: `La clasificación del archivo "${files[invalidIdx].name}" no es válida para esta sesión.` },
+          { status: 400 }
+        );
+      }
+      clasificaciones = parsed as ClasificacionDocumento[];
+    }
+
     // Enviar a la API SpringBoot de Gestión Documental
-    let uploadedResults;
-    try {
-      uploadedResults = await gestionDocumentalService.subirMultiplesArchivos(files, {
-        documentoRef,
-        etiquetas,
-        proyectoId: resolvedProyectoId,
+    // Subida secuencial archivo por archivo; ante un fallo se detiene y se registra lo logrado y lo no enviado
+    const uploadedResults: UploadedDocumentResult[] = [];
+    let failure: { index: number; message: string } | null = null;
+
+    for (let i = 0; i < files.length; i++) {
+      const c = hasSeries ? clasificaciones[i] : undefined;
+      try {
+        const result = await gestionDocumentalService.subirArchivo({
+          file: files[i],
+          documentoRef,
+          etiquetas: c ? Array.from(new Set([...etiquetas, c.serie, c.subserie, c.tipoDocumental])) : etiquetas,
+          proyectoId: resolvedProyectoId,
+        });
+        uploadedResults.push(c ? { ...result, clasificacion: c } : result);
+      } catch (error: unknown) {
+        failure = {
+          index: i,
+          message: error instanceof Error ? error.message : 'Error al conectar con la API de Gestión Documental',
+        };
+        break;
+      }
+    }
+
+    if (failure) {
+      const attemptedAt = formatLocalDateTime();
+      const failedDocuments: FailedDocumentAttempt[] = files.slice(uploadedResults.length).map((file, k) => {
+        const i = uploadedResults.length + k;
+        return {
+          originalName: file.name,
+          fileSizeBytes: file.size,
+          mimeType: file.type || 'application/octet-stream',
+          ...(hasSeries ? { clasificacion: clasificaciones[i] } : {}),
+          error: i === failure!.index ? failure!.message : 'No se envió porque un archivo anterior falló.',
+          attemptedAt,
+        };
       });
-    } catch (error: unknown) {
-      const errorMsg = error instanceof Error ? error.message : 'Error al conectar con la API de Gestión Documental';
-      
-      // Registrar fallo en la sesión
+
+      // Registrar fallo en la sesión (con lo que sí se subió y lo que no)
       await repo.update(sessionId, {
         status: 'FAILED',
-        error: errorMsg,
+        error: failure.message,
+        documents: uploadedResults,
+        failedDocuments,
       });
 
       return NextResponse.json(
-        { error: errorMsg },
+        { error: failure.message },
         { status: 502 }
       );
     }
@@ -138,6 +199,7 @@ export async function POST(
     const updatedSession = await repo.update(sessionId, {
       status: 'COMPLETED',
       documents: uploadedResults,
+      ...(session.failedDocuments?.length ? { failedDocuments: [] } : {}),
       completedAt: formatLocalDateTime(),
       error: undefined,
     });

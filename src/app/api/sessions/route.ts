@@ -2,8 +2,34 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getSessionRepository } from '@/lib/repositories/sessionRepository';
 import { authenticateApiKey } from '@/lib/auth/apiKeyAuth';
 import { formatLocalDateTime, calculateExpirationDate } from '@/lib/utils/dateUtils';
-import { CreateSessionDto, DocumentSession } from '@/types/session';
+import { CreateSessionDto, DocumentSession, SerieClasificacion } from '@/types/session';
 import { handleOptions } from '@/lib/utils/cors';
+
+const cleanText = (v: unknown): string => (typeof v === 'string' ? v.trim() : '');
+
+/** Normaliza seriesClasificacion; descarta entradas sin nombre. Devuelve [] si no hay nada válido. */
+function normalizeSeriesClasificacion(input: unknown): SerieClasificacion[] {
+  if (!Array.isArray(input)) return [];
+  const result: SerieClasificacion[] = [];
+  for (const serie of input) {
+    if (!serie || typeof serie !== 'object') continue;
+    const s = serie as Record<string, unknown>;
+    const nombre = cleanText(s.nombre);
+    if (!nombre) continue;
+    const subseries = (Array.isArray(s.subseries) ? s.subseries : []).flatMap((sub) => {
+      if (!sub || typeof sub !== 'object') return [];
+      const ss = sub as Record<string, unknown>;
+      const subNombre = cleanText(ss.nombre);
+      if (!subNombre) return [];
+      const tiposDocumentales = (Array.isArray(ss.tiposDocumentales) ? ss.tiposDocumentales : [])
+        .map(cleanText)
+        .filter(Boolean);
+      return [{ nombre: subNombre, tiposDocumentales }];
+    });
+    result.push({ nombre, subseries });
+  }
+  return result;
+}
 
 export async function OPTIONS() {
   return handleOptions();
@@ -20,6 +46,18 @@ export async function POST(request: NextRequest) {
     }
 
     const body = (await request.json()) as CreateSessionDto;
+
+    if (
+      body.seriesClasificacion !== undefined &&
+      body.seriesClasificacion !== null &&
+      !Array.isArray(body.seriesClasificacion)
+    ) {
+      return NextResponse.json(
+        { error: 'seriesClasificacion debe ser un arreglo de series.' },
+        { status: 400 }
+      );
+    }
+    const seriesClasificacion = normalizeSeriesClasificacion(body.seriesClasificacion);
 
     const proyectoId = auth.project.projectId;
 
@@ -52,6 +90,7 @@ export async function POST(request: NextRequest) {
         etiquetas: body.etiquetas || [],
         redirectUrl: body.redirectUrl,
         metadata: body.metadata || {},
+        ...(seriesClasificacion.length > 0 ? { seriesClasificacion } : {}),
         expiresInMinutes,
       },
       documents: [],

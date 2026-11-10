@@ -52,6 +52,17 @@ x-api-key: prv_live_tu_llave_privada
     "usuarioId": "usr_991823",
     "departamento": "finanzas"
   },
+  "seriesClasificacion": [
+    {
+      "nombre": "DOCUMENTOS",
+      "subseries": [
+        {
+          "nombre": "DOCUMENTOS PERSONALES",
+          "tiposDocumentales": ["REGISTRO CIVIL", "FOTOCOPIA DE DOCUMENTO DE IDENTIFICACION"]
+        }
+      ]
+    }
+  ],
   "expiresInMinutes": 30
 }
 ```
@@ -66,6 +77,8 @@ x-api-key: prv_live_tu_llave_privada
   "status": "PENDING"
 }
 ```
+
+> **Sesiones con `seriesClasificacion`:** la pantalla de carga muestra, por cada archivo, un selector buscable de tipo documental y no permite enviar hasta que todos estén clasificados. Si se sube directamente por API (`POST /api/sessions/{sessionId}/upload`, multipart), además de `files` hay que enviar `clasificaciones`: un JSON con un elemento por archivo, en el mismo orden, p. ej. `[{"serie":"DOCUMENTOS","subserie":"DOCUMENTOS PERSONALES","tipoDocumental":"REGISTRO CIVIL"}]`. Debe existir en la sesión o responde 400. A Spring Boot se envían como etiquetas por archivo (serie, subserie y tipo). Las sesiones sin `seriesClasificacion` no cambian.
 
 ---
 

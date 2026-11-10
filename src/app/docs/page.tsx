@@ -373,6 +373,12 @@ print(f"URL de carga: {data['url']}")`;
                         <td className="p-3">URL a la que se redirige al usuario tras subir los archivos con <code className="font-mono bg-zinc-100 px-1 rounded text-[10px]">?sessionId=...&status=completed</code>.</td>
                       </tr>
                       <tr>
+                        <td className="p-3 font-mono font-bold text-zinc-800">seriesClasificacion</td>
+                        <td className="p-3 font-mono text-[11px]">object[]</td>
+                        <td className="p-3">No</td>
+                        <td className="p-3">Series documentales esperadas: <code className="font-mono bg-zinc-100 px-1 rounded text-[10px]">[&#123; nombre, subseries: [&#123; nombre, tiposDocumentales: string[] &#125;] &#125;]</code>. Se guarda en la sesión y sus series/subseries se envían como etiquetas.</td>
+                      </tr>
+                      <tr>
                         <td className="p-3 font-mono font-bold text-zinc-800">expiresInMinutes</td>
                         <td className="p-3 font-mono text-[11px]">number</td>
                         <td className="p-3">No</td>
@@ -400,7 +406,7 @@ print(f"URL de carga: {data['url']}")`;
                   <code className="text-sm font-semibold text-zinc-900 font-mono">/upload/[sessionId]</code>
                 </div>
                 <p className="text-zinc-500 text-xs mt-2 leading-relaxed">
-                  Interfaz web receptiva y lista para usar donde el usuario final sube los archivos requeridos según las reglas configuradas en la sesión.
+                  Interfaz web receptiva y lista para usar donde el usuario final sube los archivos requeridos según las reglas configuradas en la sesión. Si la sesión define <code className="bg-zinc-200/80 px-1 rounded font-mono text-[10px]">seriesClasificacion</code>, cada archivo debe clasificarse (tipo documental) antes de enviarse; al subir directo por API se envía el campo multipart <code className="bg-zinc-200/80 px-1 rounded font-mono text-[10px]">clasificaciones</code> (JSON con un elemento por archivo, en orden).
                 </p>
               </div>
 

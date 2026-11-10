@@ -1,5 +1,21 @@
 export type SessionStatus = 'PENDING' | 'COMPLETED' | 'EXPIRED' | 'FAILED';
 
+export interface SubserieClasificacion {
+  nombre: string;
+  tiposDocumentales: string[];
+}
+
+export interface SerieClasificacion {
+  nombre: string;
+  subseries: SubserieClasificacion[];
+}
+
+export interface ClasificacionDocumento {
+  serie: string;
+  subserie: string;
+  tipoDocumental: string;
+}
+
 export interface SessionConfig {
   /** Identificador de proyecto o apiKey para la gestión documental */
   proyectoId: string;
@@ -21,6 +37,8 @@ export interface SessionConfig {
   redirectUrl?: string;
   /** Metadatos adicionales que el integrador necesite asociar a la sesión */
   metadata?: Record<string, unknown>;
+  /** Series documentales esperadas (opcional): serie > subseries > tipos documentales */
+  seriesClasificacion?: SerieClasificacion[];
   /** Tiempo de vida de la sesión en minutos (por defecto 30 minutos) */
   expiresInMinutes?: number;
 }
@@ -34,10 +52,24 @@ export interface UploadedDocumentResult {
   fileSizeBytes: number;
   /** Tipo MIME */
   mimeType: string;
+  /** Clasificación asignada (solo en sesiones con seriesClasificacion) */
+  clasificacion?: ClasificacionDocumento;
   /** Respuesta cruda devuelta por SpringBoot */
   rawResponse?: unknown;
   /** Fecha ISO de la subida */
   uploadedAt: string;
+}
+
+export interface FailedDocumentAttempt {
+  originalName: string;
+  fileSizeBytes: number;
+  mimeType: string;
+  /** Clasificación que se intentó enviar (solo en sesiones con seriesClasificacion) */
+  clasificacion?: ClasificacionDocumento;
+  /** Motivo: error recibido, o aviso de que no se envió por un fallo previo */
+  error: string;
+  /** Fecha del intento */
+  attemptedAt: string;
 }
 
 export interface DocumentSession {
@@ -48,6 +80,8 @@ export interface DocumentSession {
   config: SessionConfig;
   /** Lista de documentos procesados y subidos exitosamente */
   documents: UploadedDocumentResult[];
+  /** Archivos del último intento que no se lograron registrar (sesión FAILED) */
+  failedDocuments?: FailedDocumentAttempt[];
   /** Mensaje de error si la sesión falló */
   error?: string;
   /** Fecha ISO de creación */
@@ -70,6 +104,7 @@ export interface CreateSessionDto {
   etiquetas?: string[];
   redirectUrl?: string;
   metadata?: Record<string, unknown>;
+  seriesClasificacion?: SerieClasificacion[];
   expiresInMinutes?: number;
 }
 
